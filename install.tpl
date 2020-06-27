@@ -9,7 +9,7 @@ echo export db_user=${db_user} >> .bashrc
 echo export db_pass=${db_pass} >> .bashrc
 echo export bucket=${bucket} >> .bashrc
 touch run.sh
-sudo chmod 777 run.sh 
+sudo chmod 775 run.sh 
 echo unzip DjangoApp1 >> run.sh
 echo cd DjangoApp1 >> run.sh
 echo pip3 install -r requirements.txt >> run.sh
