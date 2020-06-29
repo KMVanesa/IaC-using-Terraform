@@ -50,7 +50,7 @@ data "template_file" "data" {
   template = "${file("install.tpl")}"
 
   vars = {
-    endpoint = "${aws_db_instance.default.endpoint}"
+    endpoint = trimsuffix("${aws_db_instance.default.endpoint}",":5432")
     a_key    = var.a_key
     s_key    = var.s_key
     db_name  = var.db_name
