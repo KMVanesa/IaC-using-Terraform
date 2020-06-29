@@ -49,14 +49,14 @@ provider "aws" {
 data "template_file" "data" {
   template = "${file("install.tpl")}"
 
-  vars={
-    endpoint = "${aws_db_instance.default.endpoint}"
-    a_key= var.a_key
-    s_key= var.s_key
-    db_name = var.db_name
-    db_user = var.db_user
-    db_pass = var.db_pass
-    bucket = var.bucket
+  vars = {
+    endpoint = trimsuffix("${aws_db_instance.default.endpoint}",":5432")
+    a_key    = var.a_key
+    s_key    = var.s_key
+    db_name  = var.db_name
+    db_user  = var.db_user
+    db_pass  = var.db_pass
+    bucket   = var.bucket
   }
 }
 
@@ -66,7 +66,7 @@ resource "aws_instance" "web" {
   instance_type          = "t2.micro"
   subnet_id              = aws_subnet.subnet-2.id
   iam_instance_profile   = "EC2-CSYE6225"
-  key_name = var.key_name
+  key_name               = var.key_name
   vpc_security_group_ids = [aws_security_group.app_sg.id]
   root_block_device {
     volume_size = 20
@@ -136,13 +136,14 @@ resource "aws_iam_role_policy_attachment" "attach-policy" {
 
 resource "aws_iam_policy" "policy" {
   name   = "WebAppS3"
-  # role   = aws_iam_role.EC2Role.id
   policy = <<EOF
 {
 	"Version": "2012-10-17",
 	"Statement": [{
 		"Effect": "Allow",
-		"Action": "s3:*",
+		"Action": ["s3:PutObject",
+              "s3:GetObject",
+              "s3:DeleteObject"],
 		"Resource": [
 			"arn:aws:s3:::web-vanesa-krutarth",
 			"arn:aws:s3:::web-vanesa-krutarth/*"
@@ -155,17 +156,17 @@ resource "aws_iam_policy" "policy" {
 
 
 resource "aws_db_instance" "default" {
-  allocated_storage = 20
-  storage_type      = "gp2"
-  engine            = "postgres"
-  engine_version    = "11"
-  instance_class    = "db.t3.micro"
-  name              = var.db_name
-  username          = var.db_user
-  password          = var.db_pass
-  identifier        = "csye6225-su2020"
-  db_subnet_group_name = "db_group"
-  skip_final_snapshot = true
+  allocated_storage      = 20
+  storage_type           = "gp2"
+  engine                 = "postgres"
+  engine_version         = "11"
+  instance_class         = "db.t3.micro"
+  name                   = var.db_name
+  username               = var.db_user
+  password               = var.db_pass
+  identifier             = "csye6225-su2020"
+  db_subnet_group_name   = "db_group"
+  skip_final_snapshot    = true
   vpc_security_group_ids = [aws_security_group.db_sg.id]
 }
 
@@ -201,11 +202,11 @@ resource "aws_security_group" "db_sg" {
 resource "aws_s3_bucket" "b" {
   bucket        = var.bucket
   force_destroy = true
-
+  acl           = "private"
   server_side_encryption_configuration {
     rule {
       apply_server_side_encryption_by_default {
-        sse_algorithm     = "AES256"
+        sse_algorithm = "AES256"
       }
     }
   }
@@ -230,11 +231,11 @@ resource "aws_s3_bucket" "b" {
 
 
 resource "aws_dynamodb_table" "dbTable" {
-  name = "csye6225"
-  hash_key = "id"
-  billing_mode = "PROVISIONED"
+  name           = "csye6225"
+  hash_key       = "id"
+  billing_mode   = "PROVISIONED"
   write_capacity = 5
-  read_capacity = 5
+  read_capacity  = 5
   attribute {
     name = "id"
     type = "S"
@@ -273,7 +274,7 @@ EOF
 
 resource "aws_db_subnet_group" "db_group" {
   name       = "db_group"
-  subnet_ids = [aws_subnet.subnet-2.id,aws_subnet.subnet-3.id]
+  subnet_ids = [aws_subnet.subnet-2.id, aws_subnet.subnet-3.id]
 
   tags = {
     Name = "My DB subnet group"
@@ -368,3 +369,261 @@ resource "aws_route_table_association" "c" {
   subnet_id      = aws_subnet.subnet-3.id
   route_table_id = aws_route_table.table-1.id
 }
+
+
+
+
+resource "aws_iam_policy" "policy-circleci" {
+  name        = "EC2PolicyForCircleCI"
+  path        = "/"
+
+  policy = jsonencode(
+  {
+	"Version": "2012-10-17",
+	"Statement": [{
+		"Effect": "Allow",
+		"Action": [
+			"ec2:AttachVolume",
+			"ec2:AuthorizeSecurityGroupIngress",
+			"ec2:CopyImage",
+			"ec2:CreateImage",
+			"ec2:CreateKeypair",
+			"ec2:CreateSecurityGroup",
+			"ec2:CreateSnapshot",
+			"ec2:CreateTags",
+			"ec2:CreateVolume",
+			"ec2:DeleteKeyPair",
+			"ec2:DeleteSecurityGroup",
+			"ec2:DeleteSnapshot",
+			"ec2:DeleteVolume",
+			"ec2:DeregisterImage",
+			"ec2:DescribeImageAttribute",
+			"ec2:DescribeImages",
+			"ec2:DescribeInstances",
+			"ec2:DescribeInstanceStatus",
+			"ec2:DescribeRegions",
+			"ec2:DescribeSecurityGroups",
+			"ec2:DescribeSnapshots",
+			"ec2:DescribeSubnets",
+			"ec2:DescribeTags",
+			"ec2:DescribeVolumes",
+			"ec2:DetachVolume",
+			"ec2:GetPasswordData",
+			"ec2:ModifyImageAttribute",
+			"ec2:ModifyInstanceAttribute",
+			"ec2:ModifySnapshotAttribute",
+			"ec2:RegisterImage",
+			"ec2:RunInstances",
+			"ec2:StopInstances",
+			"ec2:TerminateInstances"
+		],
+		"Resource": "*"
+	}]
+})
+
+}
+
+
+resource "aws_iam_user_policy_attachment" "policy-attach" {
+  user       = "circle-ci"
+  policy_arn = "${aws_iam_policy.policy-circleci.arn}"
+}
+
+
+
+resource "aws_s3_bucket" "s3" {
+  bucket        = "codedeploy-kmvanesa-me"
+  force_destroy = true
+  acl           = "private"
+  server_side_encryption_configuration {
+    rule {
+      apply_server_side_encryption_by_default {
+        sse_algorithm = "AES256"
+      }
+    }
+  }
+
+  lifecycle_rule {
+    prefix  = "config/"
+    enabled = true
+
+    noncurrent_version_transition {
+      days          = 30
+      storage_class = "STANDARD_IA"
+    }
+  }
+  tags = {
+    Name        = "Code Deploy S3"
+    Environment = "Dev"
+  }
+}
+
+resource "aws_iam_policy" "CodeDeploy-EC2-S3" {
+  name   = "CodeDeploy-EC2-S3"
+  policy = <<EOF
+{
+	"Version": "2012-10-17",
+	"Statement": [{
+		"Effect": "Allow",
+		"Action": ["s3:PutObject",
+              "s3:Get*",
+              "s3:DeleteObject",
+              "s3:List*"],
+		"Resource": [
+			"arn:aws:s3:::codedeploy-kmvanesa-me",
+			"arn:aws:s3:::codedeploy-kmvanesa-me/*",
+      "arn:aws:s3:::aws-codedeploy-us-east-1/*"
+		]
+	}]
+}
+  EOF
+
+}
+
+resource "aws_iam_role_policy_attachment" "attach-policy-ec2" {
+  role       = "${aws_iam_role.EC2Role.name}"
+  policy_arn = "${aws_iam_policy.CodeDeploy-EC2-S3.arn}"
+}
+
+
+
+resource "aws_iam_policy" "policy-circleci-s3" {
+  name        = "CircleCI-Upload-To-S3"
+  path        = "/"
+
+  policy = jsonencode(
+  {
+	"Version": "2012-10-17",
+	"Statement": [{
+		"Effect": "Allow",
+		"Action": ["s3:PutObject",
+              "s3:Get*",
+              "s3:DeleteObject"
+              ],
+		"Resource": [
+			"arn:aws:s3:::codedeploy-kmvanesa-me",
+			"arn:aws:s3:::codedeploy-kmvanesa-me/*"
+		]
+	}]
+}
+  )
+
+}
+
+resource "aws_iam_user_policy_attachment" "policy-attach-s3" {
+  user       = "circle-ci"
+  policy_arn = "${aws_iam_policy.policy-circleci-s3.arn}"
+}
+
+resource "aws_iam_policy" "policy-circleci-code-deploy" {
+  name        = "CircleCI-Code-Deploy"
+  path        = "/"
+
+  policy = jsonencode(
+  {
+	"Version": "2012-10-17",
+	"Statement": [{
+			"Effect": "Allow",
+			"Action": [
+				"codedeploy:RegisterApplicationRevision",
+        "codedeploy:GetApplication",
+				"codedeploy:GetApplicationRevision",
+        "codedeploy:GetDeploymentGroup"
+			],
+			"Resource": [
+				"arn:aws:codedeploy:us-east-1:708581696554:application:csye6225-webapp",
+        "arn:aws:codedeploy:us-east-1:708581696554:deploymentgroup:csye6225-webapp/csye6225-webapp-deployment"
+			]
+		},
+		{
+			"Effect": "Allow",
+			"Action": [
+				"codedeploy:CreateDeployment",
+				"codedeploy:GetDeployment"
+			],
+			"Resource": [
+				"*"
+			]
+		},
+		{
+			"Effect": "Allow",
+			"Action": [
+				"codedeploy:GetDeploymentConfig"
+			],
+			"Resource": [
+				"arn:aws:codedeploy:us-east-1:708581696554:deploymentconfig:CodeDeployDefault.OneAtATime",
+				"arn:aws:codedeploy:us-east-1:708581696554:deploymentconfig:CodeDeployDefault.HalfAtATime",
+				"arn:aws:codedeploy:us-east-1:708581696554:deploymentconfig:CodeDeployDefault.AllAtOnce"
+			]
+		}
+	]
+})
+
+}
+
+resource "aws_iam_user_policy_attachment" "policy-attach-code-deploy" {
+  user       = "circle-ci"
+  policy_arn = "${aws_iam_policy.policy-circleci-code-deploy.arn}"
+}
+
+
+resource "aws_codedeploy_app" "csye6225-webapp" {
+  compute_platform = "Server"
+  name             = "csye6225-webapp"
+}
+
+
+resource "aws_iam_role" "CodeDeployServiceRole" {
+  name = "CodeDeployServiceRole"
+
+  assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "codedeploy.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+EOF
+}
+
+resource "aws_iam_role_policy_attachment" "AWSCodeDeployRole" {
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole"
+  role       = "${aws_iam_role.CodeDeployServiceRole.name}"
+}
+
+
+
+
+
+resource "aws_codedeploy_deployment_group" "csye6225-webapp-deployment" {
+  app_name              = "${aws_codedeploy_app.csye6225-webapp.name}"
+  deployment_group_name = "csye6225-webapp-deployment"
+  service_role_arn      = "${aws_iam_role.CodeDeployServiceRole.arn}"
+  deployment_style {
+    deployment_type = "IN_PLACE"
+  }
+  deployment_config_name = "CodeDeployDefault.AllAtOnce"
+  
+
+  auto_rollback_configuration {
+    enabled = true
+    events  = ["DEPLOYMENT_FAILURE"]
+  }
+  ec2_tag_set {
+    ec2_tag_filter {
+      key   = "Name"
+      type  = "KEY_AND_VALUE"
+      value = "Demo Instance"
+    }
+  }
+
+}
+
+
