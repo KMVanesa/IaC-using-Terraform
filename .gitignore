@@ -31,3 +31,4 @@ credentials.txt
 # example: *tfplan*
 apply.sh
 destroy.sh
+.vscode
