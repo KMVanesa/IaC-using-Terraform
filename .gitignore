@@ -29,3 +29,5 @@ override.tf.json
 # example: *tfplan*
 apply.sh
 destroy.sh
+install.txt
+credentials.txt

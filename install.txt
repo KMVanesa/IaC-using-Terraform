@@ -6,7 +6,9 @@ curl -u 1a2e1b29c61bef2b54e02fca3c7ce65dc73f0dae \
     -d build_parameters[CIRCLE_JOB]=build \
     https://circleci.com/api/v1.1/project/github/vanesak-su2020/ami/tree/master
 
-
+url -u 1a2e1b29c61bef2b54e02fca3c7ce65dc73f0dae \
+    -d build_parameters[CIRCLE_JOB]=build \
+    https://circleci.com/api/v1.1/project/github/vanesak-su2020/webapp/tree/master
 
 sudo apt-get install wget ca-certificates
 wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
