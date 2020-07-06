@@ -31,3 +31,4 @@ apply.sh
 destroy.sh
 install.txt
 credentials.txt
+*.txt
