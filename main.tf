@@ -133,6 +133,10 @@ resource "aws_iam_role_policy_attachment" "attach-policy" {
   role       = "${aws_iam_role.EC2Role.name}"
   policy_arn = "${aws_iam_policy.policy.arn}"
 }
+resource "aws_iam_role_policy_attachment" "cloud-watch-policy" {
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+  role       = "${aws_iam_role.EC2Role.name}"
+}
 
 resource "aws_iam_policy" "policy" {
   name   = "WebAppS3"
