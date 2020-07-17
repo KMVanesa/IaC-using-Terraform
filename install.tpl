@@ -1,6 +1,4 @@
 #! /bin/bash
-sudo apt-get install libpq-dev python-dev -y
-sudo apt-get install python3-venv -y
 cd /home/ubuntu/
 touch env.sh
 sudo chmod 775 env.sh
