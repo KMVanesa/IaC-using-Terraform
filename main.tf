@@ -44,7 +44,7 @@ provider "aws" {
   region = var.region
 }
 
-
+#Template User Data
 
 data "template_file" "data" {
   template = "${file("install.tpl")}"
@@ -60,25 +60,27 @@ data "template_file" "data" {
   }
 }
 
+# EC2 Instance 
 
-resource "aws_instance" "web" {
-  ami                    = var.ami
-  instance_type          = "t2.micro"
-  subnet_id              = aws_subnet.subnet-2.id
-  iam_instance_profile   = "EC2-CSYE6225"
-  key_name               = var.key_name
-  vpc_security_group_ids = [aws_security_group.app_sg.id]
-  root_block_device {
-    volume_size = 20
-    volume_type = "gp2"
-  }
-  user_data = "${data.template_file.data.rendered}"
+# resource "aws_instance" "web" {
+#   ami                    = var.ami
+#   instance_type          = "t2.micro"
+#   subnet_id              = aws_subnet.subnet-2.id
+#   iam_instance_profile   = "EC2-CSYE6225"
+#   key_name               = var.key_name
+#   vpc_security_group_ids = [aws_security_group.app_sg.id]
+#   root_block_device {
+#     volume_size = 20
+#     volume_type = "gp2"
+#   }
+#   user_data = "${data.template_file.data.rendered}"
 
-  tags = {
-    Name = "Demo Instance"
-  }
-}
+#   tags = {
+#     Name = "Demo Instance"
+#   }
+# }
 
+# Application Security Group 
 
 resource "aws_security_group" "app_sg" {
   name        = "Demo SG"
@@ -123,11 +125,17 @@ resource "aws_security_group" "app_sg" {
     Name = "Application"
   }
 }
+# EC2 Profile 
+
 
 resource "aws_iam_instance_profile" "EC2Profile" {
   name = "EC2-CSYE6225"
   role = "${aws_iam_role.EC2Role.name}"
 }
+
+
+# EC2 Roles Attachements 
+
 
 resource "aws_iam_role_policy_attachment" "attach-policy" {
   role       = "${aws_iam_role.EC2Role.name}"
@@ -138,11 +146,14 @@ resource "aws_iam_role_policy_attachment" "cloud-watch-policy" {
   role       = "${aws_iam_role.EC2Role.name}"
 }
 
+
+# EC2 policy for S3 
+
 resource "aws_iam_policy" "policy" {
   name   = "WebAppS3"
   policy = <<EOF
 {
-	"Version": "2012-10-17",
+	"Version"  : "2012-10-17",
 	"Statement": [{
 		"Effect": "Allow",
 		"Action": ["s3:PutObject",
@@ -158,6 +169,37 @@ resource "aws_iam_policy" "policy" {
 
 }
 
+# EC2 policy for Code Deploy
+
+resource "aws_iam_role" "EC2Role" {
+  name = "EC2-CSYE6225"
+
+  assume_role_policy = <<EOF
+{
+  "Version"  : "2012-10-17",
+  "Statement": [
+    {
+      "Sid"      : "",
+      "Effect"   : "Allow",
+      "Principal": {
+        "Service": [
+          "ec2.amazonaws.com"
+        ]
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+EOF
+
+  tags = {
+    name = "EC2-CSYE6225"
+  }
+}
+
+
+
+# RDS DB Instance 
 
 resource "aws_db_instance" "default" {
   allocated_storage      = 20
@@ -174,6 +216,7 @@ resource "aws_db_instance" "default" {
   vpc_security_group_ids = [aws_security_group.db_sg.id]
 }
 
+# RDS Security Group
 
 resource "aws_security_group" "db_sg" {
   name        = "allow_db"
@@ -201,7 +244,19 @@ resource "aws_security_group" "db_sg" {
   }
 }
 
+# DB Subnet Group
 
+resource "aws_db_subnet_group" "db_group" {
+  name       = "db_group"
+  subnet_ids = [aws_subnet.subnet-2.id, aws_subnet.subnet-3.id]
+
+  tags = {
+    Name = "My DB subnet group"
+  }
+}
+
+
+# S3 Bucket
 
 resource "aws_s3_bucket" "b" {
   bucket        = var.bucket
@@ -232,7 +287,7 @@ resource "aws_s3_bucket" "b" {
 }
 
 
-
+# Dynamo DB Table
 
 resource "aws_dynamodb_table" "dbTable" {
   name           = "csye6225"
@@ -248,62 +303,24 @@ resource "aws_dynamodb_table" "dbTable" {
 }
 
 
-resource "aws_iam_role" "EC2Role" {
-  name = "EC2-CSYE6225"
-
-  assume_role_policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "",
-      "Effect": "Allow",
-      "Principal": {
-        "Service": [
-          "ec2.amazonaws.com"
-        ]
-      },
-      "Action": "sts:AssumeRole"
-    }
-  ]
-}
-EOF
-
-  tags = {
-    name = "EC2-CSYE6225"
-  }
-}
-
-
-
-resource "aws_db_subnet_group" "db_group" {
-  name       = "db_group"
-  subnet_ids = [aws_subnet.subnet-2.id, aws_subnet.subnet-3.id]
-
-  tags = {
-    Name = "My DB subnet group"
-  }
-}
-
-
-
+#  Create a VPC
 
 resource "random_id" "server" {
   byte_length = 8
 }
-
-# # Create a VPC
 resource "aws_vpc" "aws_demo" {
   cidr_block                       = "10.0.0.0/16"
   enable_dns_hostnames             = true
   enable_dns_support               = true
   enable_classiclink_dns_support   = true
   assign_generated_ipv6_cidr_block = false
-  tags = {
+  tags                             = {
     Name = "aws_demo ${random_id.server.hex}"
     Tag2 = "new tag"
   }
 }
+
+# Subnets
 
 resource "aws_subnet" "subnet" {
   cidr_block              = "10.0.1.0/24"
@@ -338,6 +355,8 @@ resource "aws_subnet" "subnet-3" {
   }
 }
 
+# Internet Gateway
+
 resource "aws_internet_gateway" "main-gateway" {
   vpc_id = aws_vpc.aws_demo.id
 
@@ -345,6 +364,8 @@ resource "aws_internet_gateway" "main-gateway" {
     Name = "internet-gateway"
   }
 }
+
+# Route Table
 
 resource "aws_route_table" "table-1" {
   vpc_id = aws_vpc.aws_demo.id
@@ -375,15 +396,15 @@ resource "aws_route_table_association" "c" {
 }
 
 
-
+# Policy for Circle CI
 
 resource "aws_iam_policy" "policy-circleci" {
-  name        = "EC2PolicyForCircleCI"
-  path        = "/"
+  name = "EC2PolicyForCircleCI"
+  path = "/"
 
   policy = jsonencode(
   {
-	"Version": "2012-10-17",
+	"Version"  : "2012-10-17",
 	"Statement": [{
 		"Effect": "Allow",
 		"Action": [
@@ -433,6 +454,7 @@ resource "aws_iam_user_policy_attachment" "policy-attach" {
   policy_arn = "${aws_iam_policy.policy-circleci.arn}"
 }
 
+# Codedeploy S3 Bucket
 
 
 resource "aws_s3_bucket" "s3" {
@@ -462,11 +484,14 @@ resource "aws_s3_bucket" "s3" {
   }
 }
 
+
+# Code Deploy IAM Policy
+
 resource "aws_iam_policy" "CodeDeploy-EC2-S3" {
   name   = "CodeDeploy-EC2-S3"
   policy = <<EOF
 {
-	"Version": "2012-10-17",
+	"Version"  : "2012-10-17",
 	"Statement": [{
 		"Effect": "Allow",
 		"Action": ["s3:PutObject",
@@ -490,14 +515,15 @@ resource "aws_iam_role_policy_attachment" "attach-policy-ec2" {
 }
 
 
+# Codedeploy Policy for CircleCI
 
 resource "aws_iam_policy" "policy-circleci-s3" {
-  name        = "CircleCI-Upload-To-S3"
-  path        = "/"
+  name = "CircleCI-Upload-To-S3"
+  path = "/"
 
   policy = jsonencode(
   {
-	"Version": "2012-10-17",
+	"Version"  : "2012-10-17",
 	"Statement": [{
 		"Effect": "Allow",
 		"Action": ["s3:PutObject",
@@ -519,13 +545,15 @@ resource "aws_iam_user_policy_attachment" "policy-attach-s3" {
   policy_arn = "${aws_iam_policy.policy-circleci-s3.arn}"
 }
 
+# Codedeploy Policy for CircleCI
+
 resource "aws_iam_policy" "policy-circleci-code-deploy" {
-  name        = "CircleCI-Code-Deploy"
-  path        = "/"
+  name = "CircleCI-Code-Deploy"
+  path = "/"
 
   policy = jsonencode(
   {
-	"Version": "2012-10-17",
+	"Version"  : "2012-10-17",
 	"Statement": [{
 			"Effect": "Allow",
 			"Action": [
@@ -570,19 +598,21 @@ resource "aws_iam_user_policy_attachment" "policy-attach-code-deploy" {
   policy_arn = "${aws_iam_policy.policy-circleci-code-deploy.arn}"
 }
 
+# Codedeployment Application
 
 resource "aws_codedeploy_app" "csye6225-webapp" {
   compute_platform = "Server"
   name             = "csye6225-webapp"
 }
 
+# Code Deployment Service Role
 
 resource "aws_iam_role" "CodeDeployServiceRole" {
   name = "CodeDeployServiceRole"
 
   assume_role_policy = <<EOF
 {
-  "Version": "2012-10-17",
+  "Version"  : "2012-10-17",
   "Statement": [
     {
       "Sid"      : "",
@@ -602,9 +632,7 @@ resource "aws_iam_role_policy_attachment" "AWSCodeDeployRole" {
   role       = "${aws_iam_role.CodeDeployServiceRole.name}"
 }
 
-
-
-
+# Codedeploy Deployment group
 
 resource "aws_codedeploy_deployment_group" "csye6225-webapp-deployment" {
   app_name              = "${aws_codedeploy_app.csye6225-webapp.name}"
@@ -615,6 +643,7 @@ resource "aws_codedeploy_deployment_group" "csye6225-webapp-deployment" {
   }
   deployment_config_name = "CodeDeployDefault.AllAtOnce"
   
+  autoscaling_groups = [aws_autoscaling_group.autoscale-group.id]
 
   auto_rollback_configuration {
     enabled = true
@@ -628,6 +657,164 @@ resource "aws_codedeploy_deployment_group" "csye6225-webapp-deployment" {
     }
   }
 
+  load_balancer_info {
+    target_group_pair_info {
+      prod_traffic_route {
+        listener_arns = [aws_lb_listener.lb-listener.arn]
+      }
+      target_group {
+        name = aws_lb_target_group.lb-target-group.name
+      }
+    }
+  }
+
 }
 
 
+# EC2 Launch config
+
+resource "aws_launch_configuration" "asg_launch_config" {
+  //name_prefix   = "asg_launch_config"
+  image_id                    = var.ami
+  instance_type               = "t2.micro"
+  key_name                    = "aws_prod"
+  user_data                   = "${data.template_file.data.rendered}"
+  iam_instance_profile        = "EC2-CSYE6225"
+  name                        = "asg_launch_config"
+  security_groups             = [aws_security_group.app_sg.id]
+  associate_public_ip_address = true
+  root_block_device {
+    volume_size = 20
+    volume_type = "gp2"
+  }
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Auto Scaling Group
+
+resource "aws_autoscaling_group" "autoscale-group" {
+  # availability_zones   = ["us-east-1b","us-east-1c"]
+  desired_capacity     = 2
+  max_size             = 4
+  min_size             = 2
+  default_cooldown     = 60
+  launch_configuration = aws_launch_configuration.asg_launch_config.name
+  vpc_zone_identifier  = [aws_subnet.subnet-2.id,aws_subnet.subnet-3.id]
+  target_group_arns    = [aws_lb_target_group.lb-target-group.arn]
+  tag {
+    key                 = "Name"
+    value               = "Demo Instance"
+    propagate_at_launch = true
+  }
+}
+
+resource "aws_autoscaling_policy" "WebServerScaleUpPolicy" {
+  name                   = "WebServerScaleUpPolicy"
+  scaling_adjustment     = 1
+  adjustment_type        = "ChangeInCapacity"
+  cooldown               = 60
+  autoscaling_group_name = "${aws_autoscaling_group.autoscale-group.name}"
+}
+
+resource "aws_cloudwatch_metric_alarm" "CPUAlarmHigh" {
+  alarm_name          = "CPUAlarmHigh"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "1"
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = "60"
+  statistic           = "Average"
+  threshold           = "90"
+  
+  dimensions = {
+    AutoScalingGroupName = "${aws_autoscaling_group.autoscale-group.name}"
+  }
+
+  alarm_description = "Scale-up if CPU > 90% for 60 seconds"
+  alarm_actions     = ["${aws_autoscaling_policy.WebServerScaleUpPolicy.arn}"]
+}
+
+resource "aws_autoscaling_policy" "WebServerScaleDownPolicy" {
+  name                   = "WebServerScaleDownPolicy"
+  scaling_adjustment     = -1
+  adjustment_type        = "ChangeInCapacity"
+  cooldown               = 60
+  autoscaling_group_name = "${aws_autoscaling_group.autoscale-group.name}"
+}
+
+
+resource "aws_cloudwatch_metric_alarm" "CPUAlarmLow" {
+  alarm_name          = "CPUAlarmLow"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = "1"
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = "60"
+  statistic           = "Average"
+  threshold           = "3"
+
+  dimensions = {
+    AutoScalingGroupName = "${aws_autoscaling_group.autoscale-group.name}"
+  }
+
+  alarm_description = "Scale-up if CPU < 3% for 60 seconds"
+  alarm_actions     = ["${aws_autoscaling_policy.WebServerScaleDownPolicy.arn}"]
+}
+
+
+
+
+resource "aws_lb" "lb-webapp" {
+  name               = "lb-webapp"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.app_sg.id]
+  subnets            = [aws_subnet.subnet-2.id,aws_subnet.subnet-3.id,aws_subnet.subnet.id]
+
+  enable_deletion_protection = false
+
+  tags = {
+    name = "lb-webapp"
+  }
+}
+
+resource "aws_lb_target_group" "lb-target-group" {
+  name     = "lb-target-group"
+  port     = 80
+  protocol = "HTTP"
+  vpc_id   = aws_vpc.aws_demo.id
+
+  stickiness {
+    type = "lb_cookie"
+    enabled = true
+  }
+}
+
+resource "aws_lb_listener" "lb-listener" {
+  load_balancer_arn = "${aws_lb.lb-webapp.arn}"
+  port              = "80"
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = "${aws_lb_target_group.lb-target-group.arn}"
+  }
+}
+
+
+
+
+
+resource "aws_route53_record" "www" {
+  zone_id = "Z01839792VYJ6O593DYLZ"
+  name    = ""
+  type    = "A"
+
+  alias {
+    name                   = aws_lb.lb-webapp.dns_name
+    zone_id                = aws_lb.lb-webapp.zone_id
+    evaluate_target_health = true
+  }
+}
