@@ -846,7 +846,7 @@ resource "aws_iam_role_policy_attachment" "AWSLambdaBasicExecutionRole" {
 
 resource "aws_iam_role_policy_attachment" "EC2-SNS-Access" {
   policy_arn = "arn:aws:iam::708581696554:policy/EC2-SNS-Access"
-  role       = "EC2-CSYE6225"
+  role       = "${aws_iam_role.EC2Role.name}"
 }
 
 resource "aws_iam_role_policy_attachment" "Lambda-DynamoDB-Access" {
