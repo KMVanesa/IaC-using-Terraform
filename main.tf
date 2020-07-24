@@ -44,7 +44,7 @@ provider "aws" {
   region = var.region
 }
 
-#Template User Data
+# !Template User Data
 
 data "template_file" "data" {
   template = "${file("install.tpl")}"
@@ -60,27 +60,10 @@ data "template_file" "data" {
   }
 }
 
-# EC2 Instance 
+# ! EC2 Instance 
 
-# resource "aws_instance" "web" {
-#   ami                    = var.ami
-#   instance_type          = "t2.micro"
-#   subnet_id              = aws_subnet.subnet-2.id
-#   iam_instance_profile   = "EC2-CSYE6225"
-#   key_name               = var.key_name
-#   vpc_security_group_ids = [aws_security_group.app_sg.id]
-#   root_block_device {
-#     volume_size = 20
-#     volume_type = "gp2"
-#   }
-#   user_data = "${data.template_file.data.rendered}"
 
-#   tags = {
-#     Name = "Demo Instance"
-#   }
-# }
-
-# Application Security Group 
+# ! Application Security Group 
 
 resource "aws_security_group" "app_sg" {
   name        = "Demo SG"
@@ -125,7 +108,7 @@ resource "aws_security_group" "app_sg" {
     Name = "Application"
   }
 }
-# EC2 Profile 
+# ! EC2 Profile 
 
 
 resource "aws_iam_instance_profile" "EC2Profile" {
@@ -134,7 +117,7 @@ resource "aws_iam_instance_profile" "EC2Profile" {
 }
 
 
-# EC2 Roles Attachements 
+# ! EC2 Roles Attachements 
 
 
 resource "aws_iam_role_policy_attachment" "attach-policy" {
@@ -147,7 +130,7 @@ resource "aws_iam_role_policy_attachment" "cloud-watch-policy" {
 }
 
 
-# EC2 policy for S3 
+# ! EC2 policy for S3 
 
 resource "aws_iam_policy" "policy" {
   name   = "WebAppS3"
@@ -169,7 +152,7 @@ resource "aws_iam_policy" "policy" {
 
 }
 
-# EC2 policy for Code Deploy
+# ! EC2 policy for Code Deploy
 
 resource "aws_iam_role" "EC2Role" {
   name = "EC2-CSYE6225"
@@ -199,7 +182,7 @@ EOF
 
 
 
-# RDS DB Instance 
+# ! RDS DB Instance 
 
 resource "aws_db_instance" "default" {
   allocated_storage      = 20
@@ -216,7 +199,7 @@ resource "aws_db_instance" "default" {
   vpc_security_group_ids = [aws_security_group.db_sg.id]
 }
 
-# RDS Security Group
+# ! RDS Security Group
 
 resource "aws_security_group" "db_sg" {
   name        = "allow_db"
@@ -244,7 +227,7 @@ resource "aws_security_group" "db_sg" {
   }
 }
 
-# DB Subnet Group
+# ! DB Subnet Group
 
 resource "aws_db_subnet_group" "db_group" {
   name       = "db_group"
@@ -256,7 +239,7 @@ resource "aws_db_subnet_group" "db_group" {
 }
 
 
-# S3 Bucket
+# ! S3 Bucket
 
 resource "aws_s3_bucket" "b" {
   bucket        = var.bucket
@@ -287,7 +270,7 @@ resource "aws_s3_bucket" "b" {
 }
 
 
-# Dynamo DB Table
+# ! Dynamo DB Table
 
 resource "aws_dynamodb_table" "dbTable" {
   name           = "csye6225"
@@ -299,11 +282,15 @@ resource "aws_dynamodb_table" "dbTable" {
     name = "id"
     type = "S"
   }
+  ttl {
+    attribute_name = "TimeToExist"
+    enabled        = true
+  }
 
 }
 
 
-#  Create a VPC
+# !  Create a VPC
 
 resource "random_id" "server" {
   byte_length = 8
@@ -320,7 +307,7 @@ resource "aws_vpc" "aws_demo" {
   }
 }
 
-# Subnets
+# ! Subnets
 
 resource "aws_subnet" "subnet" {
   cidr_block              = "10.0.1.0/24"
@@ -355,7 +342,7 @@ resource "aws_subnet" "subnet-3" {
   }
 }
 
-# Internet Gateway
+# ! Internet Gateway
 
 resource "aws_internet_gateway" "main-gateway" {
   vpc_id = aws_vpc.aws_demo.id
@@ -365,7 +352,7 @@ resource "aws_internet_gateway" "main-gateway" {
   }
 }
 
-# Route Table
+# ! Route Table
 
 resource "aws_route_table" "table-1" {
   vpc_id = aws_vpc.aws_demo.id
@@ -396,7 +383,7 @@ resource "aws_route_table_association" "c" {
 }
 
 
-# Policy for Circle CI
+# ! Policy for Circle CI
 
 resource "aws_iam_policy" "policy-circleci" {
   name = "EC2PolicyForCircleCI"
@@ -454,7 +441,12 @@ resource "aws_iam_user_policy_attachment" "policy-attach" {
   policy_arn = "${aws_iam_policy.policy-circleci.arn}"
 }
 
-# Codedeploy S3 Bucket
+resource "aws_iam_user_policy_attachment" "policy-attach-lambda" {
+  user       = "circle-ci"
+  policy_arn = "arn:aws:iam::708581696554:policy/LambdaUpdatePolicy"
+}
+
+# ! Codedeploy S3 Bucket
 
 
 resource "aws_s3_bucket" "s3" {
@@ -485,7 +477,7 @@ resource "aws_s3_bucket" "s3" {
 }
 
 
-# Code Deploy IAM Policy
+# ! Code Deploy IAM Policy
 
 resource "aws_iam_policy" "CodeDeploy-EC2-S3" {
   name   = "CodeDeploy-EC2-S3"
@@ -515,7 +507,7 @@ resource "aws_iam_role_policy_attachment" "attach-policy-ec2" {
 }
 
 
-# Codedeploy Policy for CircleCI
+# ! Codedeploy Policy for CircleCI
 
 resource "aws_iam_policy" "policy-circleci-s3" {
   name = "CircleCI-Upload-To-S3"
@@ -545,7 +537,7 @@ resource "aws_iam_user_policy_attachment" "policy-attach-s3" {
   policy_arn = "${aws_iam_policy.policy-circleci-s3.arn}"
 }
 
-# Codedeploy Policy for CircleCI
+# ! Codedeploy Policy for CircleCI
 
 resource "aws_iam_policy" "policy-circleci-code-deploy" {
   name = "CircleCI-Code-Deploy"
@@ -598,14 +590,14 @@ resource "aws_iam_user_policy_attachment" "policy-attach-code-deploy" {
   policy_arn = "${aws_iam_policy.policy-circleci-code-deploy.arn}"
 }
 
-# Codedeployment Application
+# ! Codedeployment Application
 
 resource "aws_codedeploy_app" "csye6225-webapp" {
   compute_platform = "Server"
   name             = "csye6225-webapp"
 }
 
-# Code Deployment Service Role
+# ! Code Deployment Service Role
 
 resource "aws_iam_role" "CodeDeployServiceRole" {
   name = "CodeDeployServiceRole"
@@ -632,7 +624,9 @@ resource "aws_iam_role_policy_attachment" "AWSCodeDeployRole" {
   role       = "${aws_iam_role.CodeDeployServiceRole.name}"
 }
 
-# Codedeploy Deployment group
+
+
+# ! Codedeploy Deployment group
 
 resource "aws_codedeploy_deployment_group" "csye6225-webapp-deployment" {
   app_name              = "${aws_codedeploy_app.csye6225-webapp.name}"
@@ -671,7 +665,7 @@ resource "aws_codedeploy_deployment_group" "csye6225-webapp-deployment" {
 }
 
 
-# EC2 Launch config
+# ! EC2 Launch config
 
 resource "aws_launch_configuration" "asg_launch_config" {
   //name_prefix   = "asg_launch_config"
@@ -692,10 +686,9 @@ resource "aws_launch_configuration" "asg_launch_config" {
   }
 }
 
-# Auto Scaling Group
+# ! Auto Scaling Group
 
 resource "aws_autoscaling_group" "autoscale-group" {
-  # availability_zones   = ["us-east-1b","us-east-1c"]
   desired_capacity     = 2
   max_size             = 4
   min_size             = 2
@@ -709,7 +702,7 @@ resource "aws_autoscaling_group" "autoscale-group" {
     propagate_at_launch = true
   }
 }
-
+# ! Auto Scaling Group Policy
 resource "aws_autoscaling_policy" "WebServerScaleUpPolicy" {
   name                   = "WebServerScaleUpPolicy"
   scaling_adjustment     = 1
@@ -717,7 +710,7 @@ resource "aws_autoscaling_policy" "WebServerScaleUpPolicy" {
   cooldown               = 60
   autoscaling_group_name = "${aws_autoscaling_group.autoscale-group.name}"
 }
-
+# ! CPUAlarmHigh
 resource "aws_cloudwatch_metric_alarm" "CPUAlarmHigh" {
   alarm_name          = "CPUAlarmHigh"
   comparison_operator = "GreaterThanThreshold"
@@ -735,7 +728,7 @@ resource "aws_cloudwatch_metric_alarm" "CPUAlarmHigh" {
   alarm_description = "Scale-up if CPU > 90% for 60 seconds"
   alarm_actions     = ["${aws_autoscaling_policy.WebServerScaleUpPolicy.arn}"]
 }
-
+# ! WebServerScaleDownPolicy
 resource "aws_autoscaling_policy" "WebServerScaleDownPolicy" {
   name                   = "WebServerScaleDownPolicy"
   scaling_adjustment     = -1
@@ -744,6 +737,7 @@ resource "aws_autoscaling_policy" "WebServerScaleDownPolicy" {
   autoscaling_group_name = "${aws_autoscaling_group.autoscale-group.name}"
 }
 
+# ! CPUAlarmLow
 
 resource "aws_cloudwatch_metric_alarm" "CPUAlarmLow" {
   alarm_name          = "CPUAlarmLow"
@@ -764,7 +758,7 @@ resource "aws_cloudwatch_metric_alarm" "CPUAlarmLow" {
 }
 
 
-
+# ! Load Balancer
 
 resource "aws_lb" "lb-webapp" {
   name               = "lb-webapp"
@@ -780,6 +774,8 @@ resource "aws_lb" "lb-webapp" {
   }
 }
 
+# ! Load Balancer Target Group
+
 resource "aws_lb_target_group" "lb-target-group" {
   name     = "lb-target-group"
   port     = 80
@@ -791,6 +787,8 @@ resource "aws_lb_target_group" "lb-target-group" {
     enabled = true
   }
 }
+
+# ! Load Balancer Listener
 
 resource "aws_lb_listener" "lb-listener" {
   load_balancer_arn = "${aws_lb.lb-webapp.arn}"
@@ -804,8 +802,7 @@ resource "aws_lb_listener" "lb-listener" {
 }
 
 
-
-
+# ! Route 53 Record
 
 resource "aws_route53_record" "www" {
   zone_id = "Z01839792VYJ6O593DYLZ"
@@ -817,4 +814,88 @@ resource "aws_route53_record" "www" {
     zone_id                = aws_lb.lb-webapp.zone_id
     evaluate_target_health = true
   }
+}
+
+# ! Lambda Policy
+
+
+resource "aws_iam_role" "iam_for_lambda" {
+  name = "iam_for_lambda"
+
+  assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": "sts:AssumeRole",
+      "Principal": {
+        "Service": "lambda.amazonaws.com"
+      },
+      "Effect": "Allow",
+      "Sid": ""
+    }
+  ]
+}
+EOF
+}
+
+resource "aws_iam_role_policy_attachment" "AWSLambdaBasicExecutionRole" {
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+  role       = "${aws_iam_role.iam_for_lambda.name}"
+}
+
+resource "aws_iam_role_policy_attachment" "EC2-SNS-Access" {
+  policy_arn = "arn:aws:iam::708581696554:policy/EC2-SNS-Access"
+  role       = "EC2-CSYE6225"
+}
+
+resource "aws_iam_role_policy_attachment" "Lambda-DynamoDB-Access" {
+  policy_arn = "arn:aws:iam::708581696554:policy/Lambda-DynamoDB-Access"
+  role       = "${aws_iam_role.iam_for_lambda.name}"
+}
+
+resource "aws_iam_role_policy_attachment" "Lambda-SES-Access" {
+  policy_arn = "arn:aws:iam::708581696554:policy/Lambda-SES-Access"
+  role       = "${aws_iam_role.iam_for_lambda.name}"
+}
+
+
+
+# ! Lamba Function
+
+resource "aws_lambda_function" "test_lambda" {
+  filename      = "webapp.zip"
+  function_name = "lambda_function_name"
+  role          = "${aws_iam_role.iam_for_lambda.arn}"
+  handler       = "my_handler.my_handler"
+
+  source_code_hash = "${filebase64sha256("webapp.zip")}"
+
+  runtime = "python3.8"
+
+}
+
+
+
+
+# ! SNS Topic
+
+resource "aws_sns_topic" "user_updates" {
+  name = "user-updates-pwd"
+}
+
+# ! SNS Subscription
+
+resource "aws_sns_topic_subscription" "user_updates_sqs_target" {
+  topic_arn = aws_sns_topic.user_updates.arn
+  protocol  = "lambda"
+  endpoint  = aws_lambda_function.test_lambda.arn
+}
+
+resource "aws_lambda_permission" "with_sns" {
+  statement_id  = "AllowExecutionFromSNS"
+  action        = "lambda:InvokeFunction"
+  function_name = "${aws_lambda_function.test_lambda.function_name}"
+  principal     = "sns.amazonaws.com"
+  source_arn    = "${aws_sns_topic.user_updates.arn}"
 }
