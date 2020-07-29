@@ -69,35 +69,22 @@ resource "aws_security_group" "app_sg" {
   name        = "Demo SG"
   description = "Allow TLS inbound traffic"
   vpc_id      = aws_vpc.aws_demo.id
+
   ingress {
-    description = "SSH"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  ingress {
-    description = "HTTPS"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    description     = "HTTPS"
+    from_port       = 443
+    to_port         = 443
+    protocol        = "tcp"
+    security_groups = [aws_security_group.lb_sg.id]
   }
   ingress {
     description = "HTTP"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    security_groups = [aws_security_group.lb_sg.id]
   }
 
-  ingress {
-    description = "WebApp"
-    from_port   = 8080
-    to_port     = 8080
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
   egress {
     from_port   = 0
     to_port     = 0
@@ -194,7 +181,7 @@ resource "aws_db_instance" "default" {
   username               = var.db_user
   password               = var.db_pass
   identifier             = "csye6225-su2020"
-  db_subnet_group_name   = "db_group"
+  db_subnet_group_name   = aws_db_subnet_group.db_group.name
   skip_final_snapshot    = true
   vpc_security_group_ids = [aws_security_group.db_sg.id]
 }
@@ -764,7 +751,7 @@ resource "aws_lb" "lb-webapp" {
   name               = "lb-webapp"
   internal           = false
   load_balancer_type = "application"
-  security_groups    = [aws_security_group.app_sg.id]
+  security_groups    = [aws_security_group.lb_sg.id]
   subnets            = [aws_subnet.subnet-2.id,aws_subnet.subnet-3.id,aws_subnet.subnet.id]
 
   enable_deletion_protection = false
@@ -898,4 +885,31 @@ resource "aws_lambda_permission" "with_sns" {
   function_name = "${aws_lambda_function.test_lambda.function_name}"
   principal     = "sns.amazonaws.com"
   source_arn    = "${aws_sns_topic.user_updates.arn}"
+}
+
+# ! Load Balancer Security Group
+
+resource "aws_security_group" "lb_sg" {
+  name        = "allow_LB"
+  description = "Allow LB to APP traffic"
+  vpc_id      = aws_vpc.aws_demo.id
+
+  ingress {
+    description = "LB Connection"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "Load Balancer"
+  }
 }
