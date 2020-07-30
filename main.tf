@@ -166,8 +166,17 @@ EOF
     name = "EC2-CSYE6225"
   }
 }
+# ! RDS DB Parameter Group 
+resource "aws_db_parameter_group" "pg" {
+  name   = "rds-pg"
+  family = "postgres11"
 
+  parameter {
+    name  = "rds.force_ssl"
+    value = "1"
+  }
 
+}
 
 # ! RDS DB Instance 
 
@@ -180,11 +189,15 @@ resource "aws_db_instance" "default" {
   name                   = var.db_name
   username               = var.db_user
   password               = var.db_pass
+  storage_encrypted      = true
   identifier             = "csye6225-su2020"
   db_subnet_group_name   = aws_db_subnet_group.db_group.name
   skip_final_snapshot    = true
   vpc_security_group_ids = [aws_security_group.db_sg.id]
+  parameter_group_name   = aws_db_parameter_group.pg.name
 }
+
+
 
 # ! RDS Security Group
 
@@ -779,8 +792,10 @@ resource "aws_lb_target_group" "lb-target-group" {
 
 resource "aws_lb_listener" "lb-listener" {
   load_balancer_arn = "${aws_lb.lb-webapp.arn}"
-  port              = "80"
-  protocol          = "HTTP"
+  port              = "443"
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-2016-08"
+  certificate_arn   = "arn:aws:acm:us-east-1:708581696554:certificate/a87f2c21-3692-4222-ba15-48b30ec3b32b"
 
   default_action {
     type             = "forward"
@@ -788,6 +803,21 @@ resource "aws_lb_listener" "lb-listener" {
   }
 }
 
+resource "aws_lb_listener" "front_end" {
+  load_balancer_arn = "${aws_lb.lb-webapp.arn}"
+  port              = "80"
+  protocol          = "HTTP"
+
+  default_action {
+    type = "redirect"
+
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
+  }
+}
 
 # ! Route 53 Record
 
@@ -894,10 +924,17 @@ resource "aws_security_group" "lb_sg" {
   description = "Allow LB to APP traffic"
   vpc_id      = aws_vpc.aws_demo.id
 
+  # ingress {
+  #   description = "LB Connection"
+  #   from_port   = 80
+  #   to_port     = 80
+  #   protocol    = "tcp"
+  #   cidr_blocks = ["0.0.0.0/0"]
+  # }
   ingress {
     description = "LB Connection"
-    from_port   = 80
-    to_port     = 80
+    from_port   = 443
+    to_port     = 443
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
