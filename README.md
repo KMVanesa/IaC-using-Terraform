@@ -39,3 +39,6 @@ and run this :
 ``` bash
 terraform apply main.tf
 ```
+
+
+aws acm import-certificate --certificate file://prod_kmvanesa_me.crt --private-key file://private.key --certificate-chain file://prod_kmvanesa_me.ca-bundle
