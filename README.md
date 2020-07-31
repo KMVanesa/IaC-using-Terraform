@@ -40,5 +40,7 @@ and run this :
 terraform apply main.tf
 ```
 
-
-aws acm import-certificate --certificate file://prod_kmvanesa_me.crt --private-key file://private.key --certificate-chain file://prod_kmvanesa_me.ca-bundle
+## Upload SSL Certificate to AWS certificate manager use foll0wing command:
+```bash
+aws acm import-certificate --certificate file://<your_certicate_path> --private-key file://<your_private_key_path> --certificate-chain file://<your_certicate_bundle_path>
+```
